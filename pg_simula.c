@@ -60,8 +60,6 @@ static void pg_simula_ProcessUtility(PlannedStmt *pstmt,
 static planner_hook_type prev_planner = NULL;
 static ProcessUtility_hook_type prev_ProcessUtility = NULL;
 
-static bool in_simula_event_progress = false;
-
 static void reloadEventTableData(void);
 static void doEventIfAny(const char *commandTag);
 
@@ -83,6 +81,9 @@ Action ActionTable[] =
 	{"wait", wait_func},
 	{NULL, NULL}
 };
+
+static bool in_simula_event_progress = false;
+static bool registered_to_callback = false;
 
 /* GUC parameter */
 static bool enable_simulation = false;
@@ -175,6 +176,8 @@ add_simula_event(PG_FUNCTION_ARGS)
 	char	*act_str = text_to_cstring(action);
 	StringInfoData	buf;
 	int		ret;
+
+	in_simula_event_progress = true;
 	
 	initStringInfo(&buf);
 	appendStringInfo(&buf,
@@ -187,9 +190,11 @@ add_simula_event(PG_FUNCTION_ARGS)
 	SetCurrentStatementStartTimestamp();
 	SPI_connect();
 	PushActiveSnapshot(GetTransactionSnapshot());
-	ret = SPI_execute(buf.data, true, 0);
+	ret = SPI_execute(buf.data, false, 0);
 	SPI_finish();
 	PopActiveSnapshot();
+
+	in_simula_event_progress = false;
 
 	PG_RETURN_BOOL(ret);
 }
@@ -209,7 +214,7 @@ clear_all_events(PG_FUNCTION_ARGS)
 	initStringInfo(&buf);
 	appendStringInfo(&buf, "TRUNCATE %s", EVENT_TABLE_NAME);
 
-	ret = SPI_execute(buf.data, true, 0);
+	ret = SPI_execute(buf.data, false, 0);
 
 	SPI_finish();
 	PopActiveSnapshot();
@@ -217,6 +222,12 @@ clear_all_events(PG_FUNCTION_ARGS)
 	in_simula_event_progress = false;
 
 	PG_RETURN_BOOL(ret);
+}
+
+static void
+pgsimula_xact_callback(XactEvent event, void *arg)
+{
+	in_simula_event_progress = false;
 }
 
 /*
@@ -228,6 +239,12 @@ pg_simula_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	const char	*commandTag;
 
 	commandTag = CreateCommandTag((Node *) &parse->type);
+
+	if (registered_to_callback)
+	{
+		RegisterXactCallback(pgsimula_xact_callback, NULL);
+		registered_to_callback = true;
+	}
 
 	if (enable_simulation &&
 		!in_simula_event_progress &&
@@ -259,6 +276,12 @@ pg_simula_ProcessUtility(PlannedStmt *pstmt,
 
 	commandTag = CreateCommandTag(parsetree);
 
+	if (registered_to_callback)
+	{
+		RegisterXactCallback(pgsimula_xact_callback, NULL);
+		registered_to_callback = true;
+	}
+
 	if (enable_simulation &&
 		!in_simula_event_progress &&
 		IsTransactionState())
@@ -266,7 +289,6 @@ pg_simula_ProcessUtility(PlannedStmt *pstmt,
 		in_simula_event_progress = true;
 		reloadEventTableData();
 		doEventIfAny(commandTag);
-		elog(NOTICE, "command tag \"%s\"", commandTag);
 		in_simula_event_progress = false;
 	}
 
