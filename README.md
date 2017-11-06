@@ -9,7 +9,7 @@ Usage
 1. Set up **simula_event** table
 
 ```
-=# INSERT INTO simula_events VALUES ('INSERT', 'WAIT', '10');
+=# INSERT INTO simula_events VALUES ('INSERT', 'WAIT', 10);
 INSERT 1 
 ```
 
@@ -30,8 +30,8 @@ COMMIT
 
 Event Table
 ------------
-|Column|Description|
-|:-----|:----------|
-|operation|A command tag of target operation|
-|action|The action that you want to simulate: **ERROR**, **PANIC**, **WAIT**|
-|sec|Wait time in second|
+|Column|Type|Description|
+|:-----|:---|:----------|
+|operation|text|A command tag of target operation|
+|action|text|The action that you want to simulate: **ERROR**, **PANIC**, **WAIT**|
+|sec|int|Wait time in second|
