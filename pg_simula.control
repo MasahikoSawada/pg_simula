@@ -1,0 +1,4 @@
+# pg_simula extension
+comment = 'Database system failure simulation tool'
+default_version = '1.0'
+module_pathname = '$libdir/pg_simula'
