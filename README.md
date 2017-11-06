@@ -35,3 +35,7 @@ Event Table
 |operation|text|A command tag of target operation|
 |action|text|The action that you want to simulate: **ERROR**, **PANIC**, **WAIT**|
 |sec|int|Wait time in second|
+
+Note
+-----
+pg_simula uses two hooks: planner_hook and ProcessUtility_hook, in order to do the action. So each action is executed either at planning in case of DML or at execution in case of DDL and other utility commands.
