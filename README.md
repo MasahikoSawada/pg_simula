@@ -8,13 +8,13 @@ Usage
 
 1. Set up **simula_event** table
 
-```sql
+```
 =# INSERT INTO simula_events VALUES ('INSERT', 'WAIT', '10');
 INSERT 1 
 ```
 
 2. Do operations
-```sql
+```
 =# BEGIN;
 BEGIN
 =# SET pg_simula.enable TO on;
