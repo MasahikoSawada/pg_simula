@@ -28,6 +28,15 @@ INSERT
 COMMIT
 ```
 
+Simulation events management
+--------------------------------
+You can manage the simulation events by either updating **simula_events** table or using the following management functions.
+
+* clear_all_events()
+  * Clear all simulation events. (same as `TRUNCATE simula_events`)
+* add_simula_event(text operation, text action, sec int)
+  * Add a simulation event.
+
 Event Table
 ------------
 |Column|Type|Description|
