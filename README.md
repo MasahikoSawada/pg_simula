@@ -32,12 +32,14 @@ STATEMENT:  TRUNCATE a;
 
 Simulation events management
 --------------------------------
-You can manage the simulation events by either updating **simula_events** table (see below) or using the following management functions.
+You can manage the simulation events by using the following management functions.
 
 * clear_all_events()
-  * Clear all simulation events. (same as `TRUNCATE simula_events;`)
+  * Clear all simulation events.
 * add_simula_event(text operation, text action, sec int)
   * Add a simulation event.
+
+Note that you can also manage the simulation events by modifing **simula_events** table directory but it's possible that a simulation action is executed as unexpected due to  recursively execution of failure action.
 
 GUC parameter
 --------------
