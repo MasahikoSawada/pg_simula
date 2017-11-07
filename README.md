@@ -61,8 +61,7 @@ git clone https://github.com/MasahikoSawada/pg_simula.git
 cd pg_simula
 make USE_PGXS=1 PG_CONFIG=/path/to/pg_config
 su
-make USE_PGXS=1 PG_CONFIG=/path/to/pg_config install
-
+make USE_PGXS=1 PG_CONFIG=/path/to/pg_config insta
 # Configuration
 vi $PGDATA/postgresql.conf
 shared_preload_libraries = 'pg_simula'
@@ -76,6 +75,17 @@ CREATE EXTENSION
 -----------+--------+-----
 (0 rows)
 ```
+
+Tested platform
+---------------
+pg_simula has been built and tested on the following platforms(*):
+
+|Category|Module Name|
+|:-------|:----------|
+|OS|Linux|
+|DBMS|PostgreSQL 10|
+
+(*) Tested only PostgreSQL 10. If you have tested on other platforms please let me know your result on Issues :-)
 
 Note
 -----
