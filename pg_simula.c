@@ -73,6 +73,7 @@ static bool isPgSimulaLoaded(void);
 static void error_func(int sec);
 static void panic_func(int sec);
 static void wait_func(int sec);
+static void fatal_func(int sec);
 
 typedef void (*act_func) (int sec);
 typedef struct Action
@@ -86,6 +87,7 @@ Action ActionTable[] =
 	{"error", error_func},
 	{"panic", panic_func},
 	{"wait", wait_func},
+	{"fatal", fatal_func},
 	{NULL, NULL}
 };
 
@@ -203,10 +205,24 @@ add_simula_event(PG_FUNCTION_ARGS)
 	int		sec = PG_GETARG_INT32(2);
 	char	*ope_str = text_to_cstring(operation);
 	char	*act_str = text_to_cstring(action);
+	Action	*act;
+	bool	found = false;
 	StringInfoData	buf;
 	int		ret;
 
 	in_simula_event_progress = true;
+
+	for (act = ActionTable; act->action != NULL; act++)
+	{
+		if (pg_strcasecmp(act->action, act_str) == 0)
+		{
+			found = true;
+			break;
+		}
+	}
+
+	if (!found)
+		ereport(ERROR, (errmsg("invalid action: \"%s\"", act_str)));
 
 	initStringInfo(&buf);
 	appendStringInfo(&buf,
@@ -418,4 +434,10 @@ static void
 wait_func(int sec)
 {
 	pg_usleep(sec * 1000 * 1000);
+}
+
+static void
+fatal_func(int sec)
+{
+	ereport(FATAL, (errmsg("simulation of FATAL by pg_simula")));
 }
