@@ -12,6 +12,7 @@
 #include "access/transam.h"
 #include "access/xact.h"
 #include "executor/spi.h"
+#include "commands/extension.h"
 #include "fmgr.h"
 #include "funcapi.h"
 #include "lib/stringinfo.h"
@@ -62,6 +63,7 @@ static ProcessUtility_hook_type prev_ProcessUtility = NULL;
 
 static void reloadEventTableData(void);
 static void doEventIfAny(const char *commandTag);
+static bool isPgSimulaLoaded(void);
 
 static void error_func(int sec);
 static void panic_func(int sec);
@@ -124,6 +126,9 @@ reloadEventTableData(void)
 
 	list_free_deep(SimulaEvents);
 	SimulaEvents = NIL;
+
+	if (!isPgSimulaLoaded())
+		return;
 
 	SetCurrentStatementStartTimestamp();
 	SPI_connect();
@@ -221,7 +226,14 @@ clear_all_events(PG_FUNCTION_ARGS)
 
 	in_simula_event_progress = false;
 
-	PG_RETURN_BOOL(ret);
+    PG_RETURN_BOOL(ret);
+}
+
+/* Check if pg_simula is already loaded (created) on the database */
+static bool
+isPgSimulaLoaded(void)
+{
+	return OidIsValid(get_extension_oid("pg_simula", true));
 }
 
 static void
@@ -240,7 +252,8 @@ pg_simula_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 
 	commandTag = CreateCommandTag((Node *) &parse->type);
 
-	if (registered_to_callback)
+	/* Register callback function if not yet */
+	if (!registered_to_callback)
 	{
 		RegisterXactCallback(pgsimula_xact_callback, NULL);
 		registered_to_callback = true;
@@ -250,10 +263,10 @@ pg_simula_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 		!in_simula_event_progress &&
 		IsTransactionState())
 	{
+		/* in_simulat_event_progress is turned off at end of the transaction */
 		in_simula_event_progress = true;
 		reloadEventTableData();
 		doEventIfAny(commandTag);
-		in_simula_event_progress = false;
 	}
 
 	if (prev_planner)
@@ -276,7 +289,8 @@ pg_simula_ProcessUtility(PlannedStmt *pstmt,
 
 	commandTag = CreateCommandTag(parsetree);
 
-	if (registered_to_callback)
+	/* Register callback function if not yet */
+	if (!registered_to_callback)
 	{
 		RegisterXactCallback(pgsimula_xact_callback, NULL);
 		registered_to_callback = true;
@@ -286,10 +300,10 @@ pg_simula_ProcessUtility(PlannedStmt *pstmt,
 		!in_simula_event_progress &&
 		IsTransactionState())
 	{
+		/* in_simulat_event_progress is turned off at end of the transaction */
 		in_simula_event_progress = true;
 		reloadEventTableData();
 		doEventIfAny(commandTag);
-		in_simula_event_progress = false;
 	}
 
     /* Call the standard process utility chain. */
