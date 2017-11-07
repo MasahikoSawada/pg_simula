@@ -9,15 +9,15 @@ Usage
 1. Set up **simula_event** table
 
 ```
-=# INSERT INTO simula_events VALUES ('INSERT', 'WAIT', 10);
+=# SELECT add_simual_event('INSERT', 'WAIT', 10);
 INSERT 1 
 -- Simulate that a insertion takes at least 10 sec for whatever reason.
+=# SELECT add_simula_evnet('TRUNCATE TABLE', 'ERROR', 0);
+-- Simulate that a truncation of table failed for whatever reason.
 ```
 
 2. Do operations
 ```
-=# BEGIN;
-BEGIN
 =# SET pg_simula.enable TO on;
 SET
 =# CREATE TABLE a (c int);
@@ -25,8 +25,9 @@ CREATE TABLE
 =# INSERT INTO a VALUES (1);
 -- wait for 10 sec
 INSERT
-=# COMMIT;
-COMMIT
+=# TRUNCATE a;
+ERROR:  simulation of ERROR by pg_simula
+STATEMENT:  TRUNCATE a;
 ```
 
 Simulation events management
@@ -49,7 +50,7 @@ Simulation Event Table
 |:-----|:---|:----------|
 |operation|text|A command tag of target operation|
 |action|text|The action that you want to simulate: **ERROR**, **PANIC**, **WAIT**|
-|sec|int|Wait time in second|
+|sec|int|Wait time in second (used only if the type of action is **WAIT**)|
 
 Installation
 -------------
