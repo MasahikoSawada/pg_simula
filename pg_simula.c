@@ -2,7 +2,7 @@
  *
  * pg_simula.c
  *
- * Simulation tool for database system failure
+ * Database system failure simulation tool for PostgreSQL.
  *
  * -------------------------------------------------------------------------
  */
