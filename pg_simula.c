@@ -63,7 +63,7 @@ static void reloadEventTableData(void);
 static void doEventIfAny(const char *commandTag);
 static bool isPgSimulaLoaded(void);
 
-/* Simualtion functions */
+/* Simulation functions */
 static void error_func(int sec);
 static void panic_func(int sec);
 static void wait_func(int sec);
