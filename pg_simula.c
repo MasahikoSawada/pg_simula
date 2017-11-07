@@ -48,6 +48,7 @@ List *SimulaEvents = NIL;
 
 PG_FUNCTION_INFO_V1(add_simula_event);
 
+/* pg_simula hook functions */
 static PlannedStmt *pg_simula_planner(Query *parse, int cursorOptions,
 										 ParamListInfo boundParams);
 static void pg_simula_ProcessUtility(PlannedStmt *pstmt,
@@ -58,13 +59,11 @@ static void pg_simula_ProcessUtility(PlannedStmt *pstmt,
 									  DestReceiver *dest,
 									  char *completionTag);
 
-static planner_hook_type prev_planner = NULL;
-static ProcessUtility_hook_type prev_ProcessUtility = NULL;
-
 static void reloadEventTableData(void);
 static void doEventIfAny(const char *commandTag);
 static bool isPgSimulaLoaded(void);
 
+/* Simualtion functions */
 static void error_func(int sec);
 static void panic_func(int sec);
 static void wait_func(int sec);
@@ -77,12 +76,15 @@ typedef struct Action
 } Action;
 
 Action ActionTable[] =
-{ 
+{
 	{"error", error_func},
 	{"panic", panic_func},
 	{"wait", wait_func},
 	{NULL, NULL}
 };
+
+static planner_hook_type prev_planner = NULL;
+static ProcessUtility_hook_type prev_ProcessUtility = NULL;
 
 static bool in_simula_event_progress = false;
 static bool registered_to_callback = false;
@@ -93,7 +95,7 @@ static bool enable_simulation = false;
 void
 _PG_init(void)
 {
-	DefineCustomBoolVariable("pg_simula.enable",
+	DefineCustomBoolVariable("pg_simula.enabled",
 							 "Enable simulation mode",
 							 NULL,
 							 &enable_simulation,
@@ -110,6 +112,7 @@ _PG_init(void)
 	ProcessUtility_hook = pg_simula_ProcessUtility;
 }
 
+/* Uninstall hook functions */
 void _PG_fini(void)
 {
 	planner_hook = prev_planner;
@@ -139,7 +142,7 @@ reloadEventTableData(void)
 
 	ret = SPI_execute(buf.data, true, 0);
 	if (ret != SPI_OK_SELECT)
-		elog(FATAL, "SPI_execute falied: error code %d", ret);
+		elog(ERROR, "SPI_execute falied: error code %d", ret);
 
 	ntup = SPI_processed;
 
@@ -183,7 +186,7 @@ add_simula_event(PG_FUNCTION_ARGS)
 	int		ret;
 
 	in_simula_event_progress = true;
-	
+
 	initStringInfo(&buf);
 	appendStringInfo(&buf,
 					 "INSERT INTO %s VALUES('%s', '%s', %d) ON CONFLICT "
@@ -204,6 +207,7 @@ add_simula_event(PG_FUNCTION_ARGS)
 	PG_RETURN_BOOL(ret);
 }
 
+/* Clear all simulation events */
 Datum
 clear_all_events(PG_FUNCTION_ARGS)
 {
@@ -211,7 +215,6 @@ clear_all_events(PG_FUNCTION_ARGS)
 	StringInfoData buf;
 
 	in_simula_event_progress = true;
-	
 	SetCurrentStatementStartTimestamp();
 	SPI_connect();
 	PushActiveSnapshot(GetTransactionSnapshot());
@@ -313,8 +316,6 @@ pg_simula_ProcessUtility(PlannedStmt *pstmt,
     else
         standard_ProcessUtility(pstmt, queryString, context, params,
                                 queryEnv, dest, completionTag);
-
-	return;
 }
 
 static void
