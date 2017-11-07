@@ -16,11 +16,14 @@
 #include "fmgr.h"
 #include "funcapi.h"
 #include "lib/stringinfo.h"
+#include "libpq/libpq-be.h"
+#include "libpq/auth.h"
 #include "miscadmin.h"
 #include "optimizer/planner.h"
 #include "optimizer/prep.h"
 #include "pgstat.h"
 #include "replication/syncrep.h"
+#include "storage/ipc.h"
 #include "storage/spin.h"
 #include "tcop/utility.h"
 #include "utils/builtins.h"
@@ -58,6 +61,9 @@ static void pg_simula_ProcessUtility(PlannedStmt *pstmt,
 									  QueryEnvironment *queryEnv,
 									  DestReceiver *dest,
 									  char *completionTag);
+static void pg_simula_ClientAuthentication(Port *port, int status);
+
+static void pg_simula_xact_callback(XactEvent event, void *arg);
 
 static void reloadEventTableData(void);
 static void doEventIfAny(const char *commandTag);
@@ -85,12 +91,14 @@ Action ActionTable[] =
 
 static planner_hook_type prev_planner = NULL;
 static ProcessUtility_hook_type prev_ProcessUtility = NULL;
+static ClientAuthentication_hook_type prev_ClientAuthentication = NULL;
 
 static bool in_simula_event_progress = false;
 static bool registered_to_callback = false;
 
 /* GUC parameter */
-static bool enable_simulation = false;
+static bool simulation_enabled = false;
+static bool connection_refused = false;
 
 void
 _PG_init(void)
@@ -98,7 +106,18 @@ _PG_init(void)
 	DefineCustomBoolVariable("pg_simula.enabled",
 							 "Enable simulation mode",
 							 NULL,
-							 &enable_simulation,
+							 &simulation_enabled,
+							 false,
+							 PGC_USERSET,
+							 0,
+							 NULL,
+							 NULL,
+							 NULL);
+
+	DefineCustomBoolVariable("pg_simula.connection_refuse",
+							 "Refuse all new connections",
+							 NULL,
+							 &connection_refused,
 							 false,
 							 PGC_USERSET,
 							 0,
@@ -110,6 +129,8 @@ _PG_init(void)
 	planner_hook = pg_simula_planner;
 	prev_ProcessUtility = ProcessUtility_hook;
 	ProcessUtility_hook = pg_simula_ProcessUtility;
+	prev_ClientAuthentication = ClientAuthentication_hook;
+	ClientAuthentication_hook = pg_simula_ClientAuthentication;
 }
 
 /* Uninstall hook functions */
@@ -240,7 +261,7 @@ isPgSimulaLoaded(void)
 }
 
 static void
-pgsimula_xact_callback(XactEvent event, void *arg)
+pg_simula_xact_callback(XactEvent event, void *arg)
 {
 	in_simula_event_progress = false;
 }
@@ -258,11 +279,11 @@ pg_simula_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	/* Register callback function if not yet */
 	if (!registered_to_callback)
 	{
-		RegisterXactCallback(pgsimula_xact_callback, NULL);
+		RegisterXactCallback(pg_simula_xact_callback, NULL);
 		registered_to_callback = true;
 	}
 
-	if (enable_simulation &&
+	if (simulation_enabled &&
 		!in_simula_event_progress &&
 		IsTransactionState())
 	{
@@ -295,11 +316,11 @@ pg_simula_ProcessUtility(PlannedStmt *pstmt,
 	/* Register callback function if not yet */
 	if (!registered_to_callback)
 	{
-		RegisterXactCallback(pgsimula_xact_callback, NULL);
+		RegisterXactCallback(pg_simula_xact_callback, NULL);
 		registered_to_callback = true;
 	}
 
-	if (enable_simulation &&
+	if (simulation_enabled &&
 		!in_simula_event_progress &&
 		IsTransactionState())
 	{
@@ -316,6 +337,41 @@ pg_simula_ProcessUtility(PlannedStmt *pstmt,
     else
         standard_ProcessUtility(pstmt, queryString, context, params,
                                 queryEnv, dest, completionTag);
+}
+
+/*
+ * Always reject the connection.
+ *
+ * This function is a copy function from auth_failed(auth.c)
+ */
+static void
+pg_simula_ClientAuthentication(Port *port, int status)
+{
+	const char *errstr;
+	int			errcode_return = ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION;
+
+	if (!connection_refused)
+		return;
+
+	/*
+	 * If we failed due to EOF from client, just quit; there's no point in
+	 * trying to send a message to the client, and not much point in logging
+	 * the failure in the postmaster log.  (Logging the failure might be
+	 * desirable, were it not for the fact that libpq closes the connection
+	 * unceremoniously if challenged for a password when it hasn't got one to
+	 * send.  We'll get a useless log entry for every psql connection under
+	 * password auth, even if it's perfectly successful, if we log STATUS_EOF
+	 * events.)
+	 */
+	if (status == STATUS_EOF)
+		proc_exit(0);
+
+	errstr = gettext_noop("authentication failed by pg_simula");
+
+	ereport(FATAL,
+			(errcode(errcode_return),
+			 errmsg(errstr, port->user_name), 0));
+	/* doesn't return */
 }
 
 static void

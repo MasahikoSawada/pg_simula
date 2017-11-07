@@ -10,7 +10,7 @@ Usage
 
 ```
 =# SELECT add_simula_event('INSERT', 'WAIT', 10);
-INSERT 1 
+INSERT 1
 -- Simulate that a insertion takes at least 10 sec for whatever reason.
 =# SELECT add_simula_evnet('TRUNCATE TABLE', 'ERROR', 0);
 -- Simulate that a truncation of table failed for whatever reason.
@@ -44,7 +44,9 @@ Note that you can also manage the simulation events by modifing **simula_events*
 GUC parameter
 --------------
 * pg_simula.enable (false by default)
- * Enable the functionality of pg_simula.
+  * Enable the functionality of pg_simula.
+* pg_simula.connection_refuse (false by default)
+  * Refuse all all new connections. The returned error code is `ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION`.
 
 Simulation Event Table
 ------------
