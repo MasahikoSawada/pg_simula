@@ -387,7 +387,8 @@ doEventIfAny(const char *commandTag)
 		{
 			Action *act = ActionTable;
 
-			for (act = ActionTable; act != NULL; act++)
+			/* Walk through ActionTable in order to find the action function */
+			for (act = ActionTable; act->action != NULL; act++)
 			{
 				if (pg_strcasecmp(act->action, event->action) == 0)
 				{
