@@ -383,6 +383,7 @@ doEventIfAny(const char *commandTag)
 	{
 		SimulaEvent *event = lfirst(cell);
 
+		/* Found the target, do specified action */
 		if (pg_strcasecmp(event->operation, commandTag) == 0)
 		{
 			Action *act = ActionTable;
