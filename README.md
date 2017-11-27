@@ -53,7 +53,7 @@ Simulation Event Table
 |Column|Type|Description|
 |:-----|:---|:----------|
 |operation|text|A command tag of target operation|
-|action|text|The action that you want to simulate: **ERROR**, **PANIC**, **WAIT**|
+|action|text|The action that you want to simulate: **ERROR**, **FATAL**, **PANIC** and **WAIT**|
 |sec|int|Wait time in second (used only if the type of action is **WAIT**)|
 
 Installation
