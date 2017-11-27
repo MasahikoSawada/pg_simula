@@ -68,6 +68,7 @@ static void pg_simula_xact_callback(XactEvent event, void *arg);
 static void reloadEventTableData(void);
 static void doEventIfAny(const char *commandTag);
 static bool isPgSimulaLoaded(void);
+static bool needReloadAndEvent(const char *commandTag);
 
 /* Simulation functions */
 static void error_func(int sec);
@@ -138,6 +139,19 @@ void _PG_fini(void)
 {
 	planner_hook = prev_planner;
 	ProcessUtility_hook = prev_ProcessUtility;
+}
+
+static bool
+needReloadAndEvent(const char *commandTag)
+{
+	if (simulation_enabled &&
+		!in_simula_event_progress &&
+		IsTransactionState() &&
+		pg_strcasecmp(commandTag, "START TRANSACTION") != 0 &&
+		pg_strcasecmp(commandTag, "BEGIN") != 0)
+		return true;
+
+	return false;
 }
 
 static void
@@ -283,14 +297,13 @@ pg_simula_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 		registered_to_callback = true;
 	}
 
-	if (simulation_enabled &&
-		!in_simula_event_progress &&
-		IsTransactionState())
+	if (needReloadAndEvent(commandTag))
 	{
 		/* in_simulat_event_progress is turned off at end of the transaction */
 		in_simula_event_progress = true;
 		reloadEventTableData();
 		doEventIfAny(commandTag);
+		in_simula_event_progress = false;
 	}
 
 	if (prev_planner)
@@ -320,14 +333,13 @@ pg_simula_ProcessUtility(PlannedStmt *pstmt,
 		registered_to_callback = true;
 	}
 
-	if (simulation_enabled &&
-		!in_simula_event_progress &&
-		IsTransactionState())
+	if (needReloadAndEvent(commandTag))
 	{
 		/* in_simulat_event_progress is turned off at end of the transaction */
 		in_simula_event_progress = true;
 		reloadEventTableData();
 		doEventIfAny(commandTag);
+		in_simula_event_progress = false;
 	}
 
     /* Call the standard process utility chain. */
