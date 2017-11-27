@@ -159,7 +159,7 @@ reloadEventTableData(void)
 	PushActiveSnapshot(GetTransactionSnapshot());
 
 	initStringInfo(&buf);
-	appendStringInfo(&buf, "SELECT * FROM %s", EVENT_TABLE_NAME);
+	appendStringInfo(&buf, "SELECT * FROM public.%s", EVENT_TABLE_NAME);
 
 	ret = SPI_execute(buf.data, true, 0);
 	if (ret != SPI_OK_SELECT)
