@@ -12,7 +12,7 @@ Usage
 =# SELECT add_simula_event('INSERT', 'WAIT', 10);
 INSERT 1
 -- Simulate that a insertion takes at least 10 sec for whatever reason.
-=# SELECT add_simula_evnet('TRUNCATE TABLE', 'ERROR', 0);
+=# SELECT add_simula_event('TRUNCATE TABLE', 'ERROR', 0);
 -- Simulate that a truncation of table failed for whatever reason.
 ```
 
